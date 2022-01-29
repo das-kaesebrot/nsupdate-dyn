@@ -115,7 +115,7 @@ def main():
         confDir = "conf"
         confFileName = "config.json"
 
-        if not os.path.exists(confDir):
+        if not os.path.exists(os.path.join(absDir, confDir)):
             genConfig(absDir, confDir, confFileName)
         
         conf = readInConf(absDir, confDir, confFileName)
