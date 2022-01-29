@@ -1,10 +1,8 @@
-from encodings import utf_8
 import os
 import sys
 import subprocess
 import json
 from time import sleep
-import requests
 import logging
 
 def genConfig(absDir, confDir, confFileName):
@@ -107,10 +105,10 @@ send
     return stdinStr
 
 def runNSUpdate(conf, stdinStr):
-    subprocess.run(["nsupdated", "-k", conf.get('key')], stdin=stdinStr)
+    p = subprocess.run(["nsupdate", "-k", conf.get('key')], capture_output=True, text=True, input=stdinStr)
 
 def main():
-    logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s', encoding="utf-8", level=logging.DEBUG)
+    logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s', level=logging.INFO)
 
     try:
         absDir = os.path.abspath(os.path.dirname(__file__))
