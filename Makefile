@@ -21,4 +21,5 @@ export SERVICECONTENT
 install:
 	touch /etc/systemd/system/${SCRIPT_NAME}.service
 	@echo "$$SERVICECONTENT" > /etc/systemd/system/${SCRIPT_NAME}.service
+	systemctl daemon-reload
 	systemctl enable --now ${SCRIPT_NAME}
