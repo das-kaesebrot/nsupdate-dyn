@@ -155,6 +155,10 @@ def main():
                             )
                         )
         
+        if singleRun:
+            logging.info("Stopping updater")
+            sys.exit(0)
+        
         while True:
             returnDict = checkIfIpHasChangedAndReturnNewIPs(conf)
             logging.debug(returnDict)
