@@ -109,7 +109,6 @@ def runNSUpdate(conf, stdinStr):
     p = subprocess.run(["nsupdate", "-k", conf.get('key')], capture_output=True, text=True, input=stdinStr)
 
 def main():
-    logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s', level=logging.INFO)
     
     help = f"""{sys.argv[0]} [-s] [-f] [--single]
   -s --systemd  Remove timestamps from log output for systemd integration
@@ -124,7 +123,9 @@ def main():
         validArgs = ["-s", "--systemd", "-f", "--force", "--single"]
         if "--systemd" in args or "-s" in args:
             logging.info("systemd mode enabled")
-            logging.basicConfig(format='%(message)s', level=logging.INFO)    
+            logging.basicConfig(format='%(message)s', level=logging.INFO)
+        else:
+            logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s', level=logging.INFO)
         if "--force" in args or "-f" in args:
             logging.info("Force update on startup enabled")
             forceUpdate = True
@@ -135,6 +136,8 @@ def main():
             logging.error(f"Invalid argument(s) given: {set(args).difference(validArgs)}")
             print(help)
             sys.exit(1)
+    else:
+        logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s', level=logging.INFO)
             
     try:
         absDir = os.path.abspath(os.path.dirname(__file__))
