@@ -145,6 +145,16 @@ def main():
         
         conf = readInConf(absDir, confDir, confFileName)
         
+        if forceUpdate or singleRun:
+            runNSUpdate(conf,
+                        generateSTDINForNSUpdate(
+                            conf,
+                            checkIfIpHasChangedAndReturnNewIPs(
+                                    conf
+                                )
+                            )
+                        )
+        
         while True:
             returnDict = checkIfIpHasChangedAndReturnNewIPs(conf)
             logging.debug(returnDict)
