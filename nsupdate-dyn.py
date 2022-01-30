@@ -110,6 +110,31 @@ def runNSUpdate(conf, stdinStr):
 def main():
     logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s', level=logging.INFO)
 
+    help = f"""{sys.argv[0]} [-s] [-f] [--single]
+  -s --systemd  Remove timestamps from log output for systemd integration
+  -f --force    Always force update for specified records on first run
+     --single   Force update once and exit script (Overrides all other options)
+"""
+    
+    forceUpdate, singleRun = False, False
+    
+    if len(sys.argv) > 1:
+        args = sys.argv[1:]
+        validArgs = ["-s", "--systemd", "-f", "--force", "--single"]
+        if "--systemd" in args or "-s" in args:
+            logging.info("systemd mode enabled")
+            logging.basicConfig(format='%(message)s', level=logging.INFO)    
+        if "--force" in args or "-f" in args:
+            logging.info("Force update on startup enabled")
+            forceUpdate = True
+        if "--single" in args:
+            logging.info("Running single update")
+            singleRun = True
+        if set(args).difference(validArgs):
+            logging.error(f"Invalid argument(s) given: {set(args).difference(validArgs)}")
+            print(help)
+            sys.exit(1)
+            
     try:
         absDir = os.path.abspath(os.path.dirname(__file__))
         confDir = "conf"
