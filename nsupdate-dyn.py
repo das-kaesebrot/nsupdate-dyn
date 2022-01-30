@@ -122,8 +122,8 @@ def main():
         args = sys.argv[1:]
         validArgs = ["-s", "--systemd", "-f", "--force", "--single"]
         if "--systemd" in args or "-s" in args:
+            logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.INFO)
             logging.info("systemd mode enabled")
-            logging.basicConfig(format='%(message)s', level=logging.INFO)
         else:
             logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s', level=logging.INFO)
         if "--force" in args or "-f" in args:
