@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import sys
 import subprocess
@@ -109,7 +110,7 @@ def runNSUpdate(conf, stdinStr):
 
 def main():
     logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s', level=logging.INFO)
-
+    
     help = f"""{sys.argv[0]} [-s] [-f] [--single]
   -s --systemd  Remove timestamps from log output for systemd integration
   -f --force    Always force update for specified records on first run
@@ -173,6 +174,7 @@ def main():
             
             logging.info(f"Sleeping for {conf.get('interval')}s")
             sleep(conf.get('interval'))
+            conf = readInConf(absDir, confDir, confFileName)
 
     except KeyboardInterrupt:
         logging.info("Stopping updater")
