@@ -14,7 +14,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/env python3 {absScriptPath} --systemd
+ExecStart=/usr/bin/env python3 "{absScriptPath}" --systemd
 
 [Install]
 WantedBy=multi-user.target
@@ -23,7 +23,9 @@ WantedBy=multi-user.target
         f.write(systemdUnitFileContent)
     
     subprocess.run(["systemctl", "daemon-reload"])
-    subprocess.run(["systemctl", "enable", "--now", scriptName])
+    subprocess.run(["systemctl", "enable",scriptName])
+    subprocess.run(["systemctl", "restart", scriptName])
+    subprocess.run(["systemctl", "status", scriptName])
 
 if __name__ == "__main__":
     if os.path.exists("/run/systemd/system"):
