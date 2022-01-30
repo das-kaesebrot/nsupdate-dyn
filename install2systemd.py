@@ -21,11 +21,15 @@ WantedBy=multi-user.target
 """
     with open(os.path.join("/etc/systemd/system", scriptName + ".service"), mode='w') as f:
         f.write(systemdUnitFileContent)
+        
+    cmdBase = "systemctl"
+    ops = [["daemon-reload"], ["enable", scriptName], ["restart", scriptName], ["status", scriptName]]
     
-    subprocess.run(["systemctl", "daemon-reload"])
-    subprocess.run(["systemctl", "enable",scriptName])
-    subprocess.run(["systemctl", "restart", scriptName])
-    subprocess.run(["systemctl", "status", scriptName])
+    for entry in ops:
+        cmd = [cmdBase]
+        cmd.extend(entry)
+        subprocess.run(cmd)
+
 
 if __name__ == "__main__":
     if os.path.exists("/run/systemd/system"):
