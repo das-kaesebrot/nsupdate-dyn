@@ -1,0 +1,13 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+dnspython = "2.6.*"
+requests = "2.31.*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"
