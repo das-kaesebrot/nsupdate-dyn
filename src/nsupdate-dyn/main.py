@@ -1,187 +1,81 @@
 #!/usr/bin/env python3
-import os
-import sys
-import subprocess
+import argparse
 import json
-from time import sleep
 import logging
+from .classes.config import Config
+from .utils.dns_utils import check_for_ip_change_via_system_utils, update_a_record
 
-def genConfig(absDir, confDir, confFileName):
-    config = {
-        "interval": 300,
-        "ip-resolver": "http://ifconfig.co/ip",
-        "key": "/path/to/your/key.conf",
-        "domains-to-update": [
-            "1.dyn.example.com",
-            "2.dyn.example.com"
-        ],
-        "zone": "dyn.example.com",
-        "nameserver": "ns1.example.com",
-        "update-records": [
-            "A",
-            "AAAA"
-        ]
-    }
-    os.makedirs(os.path.join(absDir, confDir))
-    with open(os.path.join(absDir, confDir, confFileName), mode='w') as f:
-        json.dump(obj=config, indent=4, fp=f)
-
-
-def readInConf(absDir, confDir, confFileName):
-    with open(os.path.join(absDir, confDir, confFileName), mode='r') as f:
-        config = json.load(f)
-    
-    if not os.path.isabs(config.get("key")):
-        logging.error("key variable needs to be an absolute path, given path: %s" % config.get('key'))
-        sys.exit(1)
-
-    return config
-
-def checkIfIpHasChangedAndReturnNewIPs(conf):
-
-    returnDict = {
-        "changed": False,
-    }
-
-    if "A" in conf.get('update-records'):
-        aRecordOnServer = subprocess.run(["dig", "+short", conf.get("domains-to-update")[0], f"@{conf.get('nameserver')}", "A"], capture_output=True)
-        aRecordOnServer = aRecordOnServer.stdout.decode("utf-8").strip()
-        
-    if "AAAA" in conf.get('update-records'):
-        aaaaRecordOnServer = subprocess.run(["dig", "+short", conf.get("domains-to-update")[0], f"@{conf.get('nameserver')}", "AAAA"], capture_output=True)
-        aaaaRecordOnServer = aaaaRecordOnServer.stdout.decode("utf-8").strip()
-
-    ipv4Curl = subprocess.run(["curl", "-4", conf.get("ip-resolver")], capture_output=True)
-    ipv6Curl = subprocess.run(["curl", "-6", conf.get("ip-resolver")], capture_output=True)
-
-    # check if IPv4 is available and has changed
-    if ipv4Curl.returncode == 0:
-        ipv4Local = ipv4Curl.stdout.decode("utf-8").strip()
-        returnDict["ipv4"] = ipv4Local
-        if ipv4Local != aRecordOnServer: returnDict["changed"] = True
-
-    # check if IPv6 is available and has changed
-    if ipv6Curl.returncode == 0:
-        ipv6Local = ipv6Curl.stdout.decode("utf-8").strip()
-        returnDict["ipv6"] = ipv6Local
-        if ipv6Local != aaaaRecordOnServer: returnDict["changed"] = True
-
-    return returnDict
-
-
-def generateSTDINForNSUpdate(conf, returnDict):
-    newIPv4, newIPv6 = "", ""
-
-    if 'ipv4' in returnDict.keys(): newIPv4 = returnDict.get('ipv4')
-    if 'ipv6' in returnDict.keys(): newIPv6 = returnDict.get('ipv6')
-    
-    deleteStatements = ""
-    addStatements = ""
-
-    if "A" in conf.get('update-records'):
-        for entry in conf.get('domains-to-update'):
-            deleteStatements += f"update delete {entry}. A\n"
-
-    if "AAAA" in conf.get('update-records'):
-        for entry in conf.get('domains-to-update'):
-            deleteStatements += f"update delete {entry}. AAAA\n"
-            
-
-    if "A" in conf.get('update-records') and newIPv4:
-        for entry in conf.get('domains-to-update'):
-            addStatements += f"update add {entry}. 600 A {newIPv4}\n"
-
-    if "AAAA" in conf.get('update-records') and newIPv6:
-        for entry in conf.get('domains-to-update'):
-            addStatements += f"update add {entry}. 600 AAAA {newIPv6}\n"
-
-    stdinStr = f"""server {conf.get('nameserver')}
-zone {conf.get('zone')}
-{deleteStatements}{addStatements}show
-send
-"""
-
-    logging.debug(stdinStr)
-
-    return stdinStr
-
-def runNSUpdate(conf, stdinStr):
-    p = subprocess.run(["nsupdate", "-k", conf.get('key')], capture_output=True, text=True, input=stdinStr)
 
 def main():
+    # set up logging config via argparse
+    available_levels = [
+        level.lower() for level in logging.getLevelNamesMapping().keys()
+    ]
+    available_levels.remove(logging.getLevelName(logging.NOTSET).lower())
+    available_levels.remove(logging.getLevelName(logging.WARNING).lower())
+
+    parser = argparse.ArgumentParser(description="Dynamic DNS updater for bind9")
+    parser.add_argument(
+        "-l",
+        "--logging",
+        help="set the log level",
+        dest="loglevel",
+        type=str,
+        choices=available_levels,
+        default=logging.getLevelName(logging.INFO).lower(),
+    )
     
-    help = f"""{sys.argv[0]} [-s] [-f] [--single]
-  -s --systemd  Remove timestamps from log output for systemd integration
-  -f --force    Always force update for specified records on first run
-     --single   Force update once and exit script (Overrides all other options)
-"""
+    parser.add_argument(
+        "-c",
+        "--config",
+        help="set the config path",
+        type=str,
+        default="/etc/nsupdate-dyn/config.json"
+    )
     
-    forceUpdate, singleRun = False, False
-    
-    if len(sys.argv) > 1:
-        args = sys.argv[1:]
-        validArgs = ["-s", "--systemd", "-f", "--force", "--single"]
-        if "--systemd" in args or "-s" in args:
-            logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.INFO)
-            logging.info("systemd mode enabled")
-        else:
-            logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s', level=logging.INFO)
-        if "--force" in args or "-f" in args:
-            logging.info("Force update on startup enabled")
-            forceUpdate = True
-        if "--single" in args:
-            logging.info("Running single update")
-            singleRun = True
-        if set(args).difference(validArgs):
-            logging.error(f"Invalid argument(s) given: {set(args).difference(validArgs)}")
-            print(help)
-            sys.exit(1)
-    else:
-        logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s', level=logging.INFO)
-            
+    parser.add_argument("-d", "--dry-run", help="don't actually update anything but show what would be done", action="store_true")
+
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        format="[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
+        level=args.loglevel.upper(),
+    )
+    logger = logging.getLogger("main")
+
     try:
-        absDir = os.path.abspath(os.path.dirname(__file__))
-        confDir = "conf"
-        confFileName = "config.json"
+        config = Config.from_json(args.config)
+        dnskey = config.get_dnskey_dict()
 
-        if not os.path.exists(os.path.join(absDir, confDir)):
-            genConfig(absDir, confDir, confFileName)
-        
-        conf = readInConf(absDir, confDir, confFileName)
-        
-        if forceUpdate or singleRun:
-            runNSUpdate(conf,
-                        generateSTDINForNSUpdate(
-                            conf,
-                            checkIfIpHasChangedAndReturnNewIPs(
-                                    conf
-                                )
-                            )
-                        )
-        
-        if singleRun:
-            logging.info("Stopping updater")
-            sys.exit(0)
-        
-        while True:
-            returnDict = checkIfIpHasChangedAndReturnNewIPs(conf)
-            logging.debug(returnDict)
-            if returnDict.get('changed') == True:
-                logging.info("Detected IP change, updating records")
-                returnDict.pop('changed')
+        logger.debug(f"Config: {json.dumps(config.as_dict())}")
 
-                runNSUpdate(conf, generateSTDINForNSUpdate(conf, returnDict))
-            
-            else:
-                logging.info("No IPs changed since last check")
-            
-            logging.info(f"Sleeping for {conf.get('interval')}s")
-            sleep(conf.get('interval'))
-            conf = readInConf(absDir, confDir, confFileName)
+        new_ip = None
+
+        for domain in config.domains_to_update:
+            logger.debug()
+            new_ip = check_for_ip_change_via_system_utils(
+                domain=domain,
+                http_self_resolver=config.ip_resolver,
+                dns_server=config.server,
+            )
+
+        if new_ip and not args.dry_run:
+            logger.info("Change detected, updating records")
+            update_a_record(
+                dnskey=dnskey,
+                host=config.server,
+                subdomains=config.domains_to_update,
+                new_ip=new_ip,
+                zone=config.zone,
+            )
 
     except KeyboardInterrupt:
-        logging.info("Stopping updater")
-        sys.exit(0)
+        logger.info("Stopping updater")
+        exit(0)
+
+    except Exception as e:
+        logger.exception("Fatal exception encountered")
+        exit(1)
 
 
 if __name__ == "__main__":
