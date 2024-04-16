@@ -1,3 +1,4 @@
+import json
 import logging
 import subprocess
 from typing import Optional
@@ -71,3 +72,7 @@ def update_a_record(dnskey: dict, host: str, subdomains: str | list[str], new_ip
         update.replace(subdomain, 300, "A", new_ip)
 
     response = dns.query.tcp(update, host, timeout=10)
+
+def get_dnskey_dict(key_file: str) -> dict:
+    with open(key_file, "r") as f:
+        return json.load(f)

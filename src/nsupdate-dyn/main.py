@@ -2,8 +2,11 @@
 import argparse
 import json
 import logging
-from .classes.config import Config
-from .utils.dns_utils import check_for_ip_change_via_system_utils, update_a_record
+from .utils.dns_utils import check_for_ip_change_via_system_utils, update_a_record, get_dnskey_dict
+
+# default values
+ARG_SILENT = False
+ARG_IP_RESOLVER = "http://ifconfig.co/ip"
 
 
 def main():
@@ -14,59 +17,114 @@ def main():
     available_levels.remove(logging.getLevelName(logging.NOTSET).lower())
     available_levels.remove(logging.getLevelName(logging.WARNING).lower())
 
-    parser = argparse.ArgumentParser(description="Dynamic DNS updater for bind9")
+    parser = argparse.ArgumentParser(
+        description="Dynamic DNS updater for bind9",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--dry-run",
+        help="Don't actually update anything but show what would be done",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--silent",
+        action="store_true",
+        help="Suppress non-essential logging (so that it runs silently in a cron job). Overrides the setting of the log level argument.",
+        required=False,
+        default=ARG_SILENT,
+    )
+
     parser.add_argument(
         "-l",
         "--logging",
-        help="set the log level",
+        help="Set the log level",
         dest="loglevel",
         type=str,
         choices=available_levels,
         default=logging.getLevelName(logging.INFO).lower(),
     )
-    
+
     parser.add_argument(
-        "-c",
-        "--config",
-        help="set the config path",
-        type=str,
-        default="/etc/nsupdate-dyn/config.json"
+        "-k", "--key-file", help="TSIG key file to use", type=str, required=True
     )
-    
-    parser.add_argument("-d", "--dry-run", help="don't actually update anything but show what would be done", action="store_true")
+
+    parser.add_argument(
+        "-r",
+        "--ip-resolver",
+        help="HTTP based resolver to use for getting own IPv4 address",
+        type=str,
+        required=False,
+        default=ARG_IP_RESOLVER,
+    )
+
+    parser.add_argument(
+        "-s",
+        "--server",
+        help="Nameserver to update A record(s) at",
+        type=str,
+        required=True,
+    )
+
+    parser.add_argument(
+        "-z",
+        "--zone",
+        help="DNS zone to update A record(s) in",
+        type=str,
+        required=True,
+    )
+
+    parser.add_argument(
+        "-f",
+        "--force",
+        help="Force update A record(s) on server, even if IP didn't change",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-d",
+        "--domains",
+        nargs="*",
+        help="Subdomains to update A record(s) for",
+        required=True,
+    )
 
     args = parser.parse_args()
-
+    
     logging.basicConfig(
         format="[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
         level=args.loglevel.upper(),
     )
+    
+    logging.getLogger("main").debug(f"Args: {json.dumps(vars(args), indent=4)}")
+    
+    run_update(**vars(args))
+        
+def run_update(loglevel: str, key_file: str, server: str, zone: str, domains: list[str], force: bool = False, dry_run: bool = False, silent: bool = False, ip_resolver: str = ARG_IP_RESOLVER):    
     logger = logging.getLogger("main")
 
+    if silent:
+        logger.setLevel(logging.WARN)
+        
     try:
-        config = Config.from_json(args.config)
-        dnskey = config.get_dnskey_dict()
-
-        logger.debug(f"Config: {json.dumps(config.as_dict())}")
-
         new_ip = None
 
-        for domain in config.domains_to_update:
+        for domain in domains:
             logger.debug()
             new_ip = check_for_ip_change_via_system_utils(
                 domain=domain,
-                http_self_resolver=config.ip_resolver,
-                dns_server=config.server,
+                http_self_resolver=ip_resolver,
+                dns_server=server,
             )
 
-        if new_ip and not args.dry_run:
+        if new_ip or force and not dry_run:
             logger.info("Change detected, updating records")
             update_a_record(
-                dnskey=dnskey,
-                host=config.server,
-                subdomains=config.domains_to_update,
+                dnskey=get_dnskey_dict(key_file),
+                host=server,
+                subdomains=domains,
                 new_ip=new_ip,
-                zone=config.zone,
+                zone=zone,
             )
 
     except KeyboardInterrupt:
