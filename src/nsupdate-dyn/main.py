@@ -2,7 +2,6 @@
 import argparse
 import json
 import logging
-from .utils.dns_utils import check_for_ip_change_via_system_utils, update_a_record, get_dnskey_dict
 
 # default values
 ARG_SILENT = False
@@ -101,6 +100,10 @@ def main():
     run_update(**vars(args))
         
 def run_update(loglevel: str, key_file: str, server: str, zone: str, domains: list[str], force: bool = False, dry_run: bool = False, silent: bool = False, ip_resolver: str = ARG_IP_RESOLVER):    
+    
+    # import later on so that we can call a subparser without the required packages
+    from .utils.dns_utils import check_for_ip_change_via_system_utils, update_a_record, get_dnskey_dict
+    
     logger = logging.getLogger("main")
 
     if silent:
