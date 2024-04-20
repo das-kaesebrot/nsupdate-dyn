@@ -113,14 +113,17 @@ def run_update(loglevel: str, key_file: str, server: str, zone: str, domains: li
         new_ip = None
 
         for domain in domains:
-            logger.debug()
             new_ip = check_for_ip_change_via_system_utils(
                 domain=domain,
                 http_self_resolver=ip_resolver,
                 dns_server=server,
             )
+            
+        if dry_run:
+            logger.warning("Dry run detected, skipping update")
+            return
 
-        if new_ip or force and not dry_run:
+        if new_ip or force:
             logger.info("Change detected, updating records")
             update_a_record(
                 dnskey=get_dnskey_dict(key_file),
