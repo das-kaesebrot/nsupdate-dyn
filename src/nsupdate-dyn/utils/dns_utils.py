@@ -54,13 +54,15 @@ def _check_for_ip_change(resolver_answer_list, self_resolved_ip: str) -> Optiona
     return None
 
 
-def update_a_record(dnskey: dict, host: str, subdomains: str | list[str], new_ip: str, zone: str):
+def update_a_record(
+    dnskey: dict, host: str, subdomains: str | list[str], new_ip: str, zone: str
+):
     import dns.update
     import dns.query
     import dns.tsigkeyring
 
     keyring = dns.tsigkeyring.from_text(dnskey)
-    
+
     if isinstance(subdomains, str):
         subdomains = [subdomains]
 
@@ -72,7 +74,17 @@ def update_a_record(dnskey: dict, host: str, subdomains: str | list[str], new_ip
     for subdomain in subdomains:
         update.replace(subdomain, 300, "A", new_ip)
 
-    response = dns.query.tcp(update, host, timeout=10)
+    _logger.debug(f"Update to be sent:\n{update}")
+
+    host_ip = resolve_host_to_ip(host)
+
+    response = dns.query.tcp(update, host_ip, timeout=10)
+    
+    _logger.debug(f"Nameserver response:\n{response.to_text()}")
+    
+    if len(response.errors) > 0:
+        raise RuntimeError(f"Updating DNS entries failed:\n{''.join(response.errors)}")
+
 
 def get_dnskey_dict(key_file: str) -> dict:
     with open(key_file, "r") as f:
