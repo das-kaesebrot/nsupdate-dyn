@@ -1,5 +1,6 @@
 import json
 import logging
+import socket
 import subprocess
 from typing import Optional
 
@@ -76,3 +77,9 @@ def update_a_record(dnskey: dict, host: str, subdomains: str | list[str], new_ip
 def get_dnskey_dict(key_file: str) -> dict:
     with open(key_file, "r") as f:
         return json.load(f)
+
+
+def resolve_host_to_ip(host: str) -> str:
+    resp = socket.getaddrinfo(host, None, proto=socket.IPPROTO_IP)
+    _logger.debug(resp[0])
+    return resp[0][-1][0]  # hacky but it might just work
