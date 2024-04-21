@@ -3,6 +3,7 @@ import logging
 import socket
 import subprocess
 from typing import Optional
+from ..classes.query_type import DNSQueryType
 
 _logger = logging.getLogger("dns_utils")
 
@@ -55,11 +56,13 @@ def _check_for_ip_change(resolver_answer_list, self_resolved_ip: str) -> Optiona
 
 
 def update_a_record(
-    dnskey: dict, host: str, subdomains: str | list[str], new_ip: str, zone: str
+    dnskey: dict, host: str, subdomains: str | list[str], new_ip: str, zone: str, query_type_str: str
 ):
     import dns.update
     import dns.query
     import dns.tsigkeyring
+    
+    query_type = DNSQueryType(query_type_str)
 
     keyring = dns.tsigkeyring.from_text(dnskey)
 
@@ -77,8 +80,17 @@ def update_a_record(
     _logger.debug(f"Update to be sent:\n{update}")
 
     host_ip = resolve_host_to_ip(host)
-
-    response = dns.query.tcp(update, host_ip, timeout=10)
+    
+    response = None
+    
+    if query_type == DNSQueryType.TLS:
+        response = dns.query.tls(update, host_ip, timeout=10, server_hostname=host)
+    elif query_type == DNSQueryType.TCP:
+        response = dns.query.tcp(update, host_ip, timeout=10)
+    elif query_type == DNSQueryType.UDP:
+        response = dns.query.udp(update, host_ip, timeout=10)
+    else:
+        raise NotImplementedError(f"Query type '{query_type}' is not supported yet")
     
     _logger.debug(f"Nameserver response:\n{response.to_text()}")
     
