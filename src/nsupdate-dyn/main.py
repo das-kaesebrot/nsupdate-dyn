@@ -3,9 +3,12 @@ import argparse
 import json
 import logging
 
+from .classes.query_type import DNSQueryType
+
 # default values
 ARG_SILENT = False
 ARG_IP_RESOLVER = "http://ifconfig.co/ip"
+ARG_QUERY_TYPE = DNSQueryType.TLS
 
 
 def main():
@@ -87,6 +90,15 @@ def main():
         help="Subdomains to update A record(s) for",
         required=True,
     )
+    parser.add_argument(
+        "-q",
+        "--query-type",
+        help="Query type to use",
+        required=True,
+        choices=DNSQueryType.list(),
+        default=DNSQueryType.TLS,
+        type=str
+    )
 
     args = parser.parse_args()
     
@@ -99,7 +111,7 @@ def main():
     
     run_update(**vars(args))
         
-def run_update(loglevel: str, key_file: str, server: str, zone: str, domains: list[str], force: bool = False, dry_run: bool = False, silent: bool = False, ip_resolver: str = ARG_IP_RESOLVER):    
+def run_update(loglevel: str, key_file: str, server: str, zone: str, domains: list[str], force: bool = False, dry_run: bool = False, silent: bool = False, ip_resolver: str = ARG_IP_RESOLVER, query_type: str = ARG_QUERY_TYPE):    
     
     # import later on so that we can call a subparser without the required packages
     from .utils.dns_utils import check_for_ip_change_via_system_utils, update_a_record, get_dnskey_dict
@@ -131,6 +143,7 @@ def run_update(loglevel: str, key_file: str, server: str, zone: str, domains: li
                 subdomains=domains,
                 new_ip=new_ip,
                 zone=zone,
+                query_type_str=query_type,
             )
 
     except KeyboardInterrupt:
