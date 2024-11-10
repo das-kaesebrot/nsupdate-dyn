@@ -46,8 +46,11 @@ def _check_for_ip_change(resolver_answer_list, self_resolved_ip: str) -> Optiona
 
     _logger.debug(f"Self resolved IP: {self_resolved_ip}")
     _logger.debug(f"Existing IPs resolved from server: {resolver_answer_list}")
-
-    if self_resolved_ip != ip_on_server or len(resolver_answer_list) == 0:
+    
+    if len(resolver_answer_list) > 0:
+        ip_on_server = resolver_answer_list[0]
+    
+    if not ip_on_server or ip_on_server != self_resolved_ip:
         # if there is no response, we can safely assume that we have to set the record
         _logger.debug("IP change detected")
         return self_resolved_ip
