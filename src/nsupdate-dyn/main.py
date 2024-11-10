@@ -114,7 +114,7 @@ def main():
 def run_update(loglevel: str, key_file: str, server: str, zone: str, domains: list[str], force: bool = False, dry_run: bool = False, silent: bool = False, ip_resolver: str = ARG_IP_RESOLVER, query_type: str = ARG_QUERY_TYPE):    
     
     # import later on so that we can call a subparser without the required packages
-    from .utils.dns_utils import check_for_ip_change_via_system_utils, update_a_record, get_dnskey_dict
+    from .utils.dns_utils import check_for_ip_change_via_system_utils, update_a_record, get_dnskey_dict, get_fqdn
     
     logger = logging.getLogger("main")
 
@@ -125,8 +125,10 @@ def run_update(loglevel: str, key_file: str, server: str, zone: str, domains: li
         new_ip = None
 
         for domain in domains:
+            fqdn = get_fqdn(domain, zone)
+            
             new_ip = check_for_ip_change_via_system_utils(
-                domain=domain,
+                domain=fqdn,
                 http_self_resolver=ip_resolver,
                 dns_server=server,
             )

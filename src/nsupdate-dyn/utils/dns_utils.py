@@ -107,3 +107,14 @@ def resolve_host_to_ip(host: str) -> str:
     resp = socket.getaddrinfo(host, None, proto=socket.IPPROTO_IP)
     _logger.debug(resp[0])
     return resp[0][-1][0]  # hacky but it might just work
+
+# creates an FQDN without trailing dot
+def get_fqdn(domain: str, zone: str) -> str:
+    if not domain.endswith("."):
+        domain = f"{domain}.{zone}"
+    
+    # remove the trailing dot, no matter what
+    if domain.endswith("."):
+        domain = domain[:-1]
+    
+    return domain
