@@ -1,7 +1,7 @@
 package keyfile
 
 type TSIGKey struct {
-	Name      string
+	ID        string
 	Secret    string
 	Algorithm string
 }
