@@ -1,0 +1,20 @@
+[project]
+name = "nsupdate-dyn"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "das-kaesebrot", email = "49565683+das-kaesebrot@users.noreply.github.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "dnspython>=2.9.2",
+    "requests>=2.34.2",
+]
+
+[project.scripts]
+nsupdate-dyn = "nsupdate_dyn:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
